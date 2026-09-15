@@ -1,0 +1,103 @@
+{
+  "info": {
+    "_postman_id": "c3d9g1c5-0a6e-5b4c-9e3f-234567890bcd",
+    "name": "API TicketPass - FastAPI Endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección para probar los endpoints de TicketPass desarrollados con FastAPI y SQLite.\n\nIncluye operaciones para consultar eventos, autocompletar personas por DNI y registrar compras.\n\nBase URL: http://127.0.0.1:8000"
+  },
+  "item": [
+    {
+      "name": "01 - Listar eventos",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/eventos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "eventos"
+          ]
+        },
+        "description": "Obtiene la lista completa de eventos disponibles en el catálogo."
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Buscar persona por DNI (Valido)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/persona/{{dni_demo}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "persona",
+            "{{dni_demo}}"
+          ]
+        },
+        "description": "Consulta los datos de una persona por su DNI en el padrón ciudadano (Mock RENIEC)."
+      },
+      "response": []
+    },
+    {
+      "name": "03 - Buscar persona por DNI (No existente)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/persona/00000000",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "persona",
+            "00000000"
+          ]
+        },
+        "description": "Retorna un error 404 cuando el DNI consultado no existe en la base de datos."
+      },
+      "response": []
+    },
+    {
+      "name": "04 - Procesar compra de ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dni_comprador\": \"12345678\",\n  \"id_evento\": 1,\n  \"correo\": \"estudiante@utec.edu.pe\",\n  \"cantidad\": 2\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/comprar",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "comprar"
+          ]
+        },
+        "description": "Registra una orden de compra, calcula el monto total, genera el código de entrada único y dispara el correo de confirmación."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "dni_demo",
+      "value": "12345678"
+    }
+  ]
+}
