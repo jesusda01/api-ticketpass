@@ -13,7 +13,7 @@ models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="TicketPass API")
 
-# Configuración CORS para permitir peticiones desde el Frontend Apache (Puerto 8080)
+# Configuración CORS para permitir peticiones desde el Frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,7 +34,6 @@ def get_db():
 @app.on_event("startup")
 def startup_populate_db():
     db = database.SessionLocal()
-    # Insertar eventos si la tabla está vacía
     if not db.query(models.Evento).first():
         eventos = [
             models.Evento(
@@ -64,7 +63,6 @@ def startup_populate_db():
         ]
         db.add_all(eventos)
 
-    # Insertar registros ciudadanos (Mock RENIEC) si la tabla está vacía
     if not db.query(models.Persona).first():
         personas = [
             models.Persona(dni="12345678", nombres="Juan Carlos", apellido_paterno="Pérez", apellido_materno="Gómez"),
@@ -76,7 +74,6 @@ def startup_populate_db():
     db.commit()
     db.close()
 
-# Función para envío simulado/real de correo de confirmación
 def enviar_correo_confirmacion(destino: str, codigo_ticket: str, evento_titulo: str):
     mensaje_texto = f"""
     ¡Gracias por tu compra en TicketPass!
@@ -87,18 +84,28 @@ def enviar_correo_confirmacion(destino: str, codigo_ticket: str, evento_titulo: 
     
     Muestra este código en la puerta del evento para ingresar.
     """
-    # Para demostración en entorno local / AWS Academy logueamos en consola.
-    # Si configuras SMTP real, smtplib enviará el correo efectivamente.
     print(f"\n[CORREO ENVIADO A {destino}]\n{mensaje_texto}\n")
 
 # --- ENDPOINTS ---
 
-# 1. Obtener catálogo de eventos
+@app.get("/")
+def home():
+    return {"status": "API TicketPass activa"}
+
+# 1. Obtener catálogo completo de eventos
 @app.get("/eventos", response_model=list[schemas.EventoResponse])
 def listar_eventos(db: Session = Depends(get_db)):
     return db.query(models.Evento).all()
 
-# 2. Consultar DNI para autocompletado de formulario
+# 2. Obtener detalle de un evento específico por ID
+@app.get("/eventos/{evento_id}", response_model=schemas.EventoResponse)
+def obtener_evento_por_id(evento_id: int, db: Session = Depends(get_db)):
+    evento = db.query(models.Evento).filter(models.Evento.id == evento_id).first()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return evento
+
+# 3. Consultar DNI para autocompletado de formulario
 @app.get("/persona/{dni}", response_model=schemas.PersonaResponse)
 def buscar_persona(dni: str, db: Session = Depends(get_db)):
     persona = db.query(models.Persona).filter(models.Persona.dni == dni).first()
@@ -106,19 +113,17 @@ def buscar_persona(dni: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="DNI no encontrado en el padrón")
     return persona
 
-# 3. Registrar compra de ticket
+# 4. Registrar compra de ticket
 @app.post("/comprar", response_model=schemas.OrdenResponse)
 def procesar_compra(
     orden: schemas.OrdenCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    # Validar evento existente
     evento = db.query(models.Evento).filter(models.Evento.id == orden.id_evento).first()
     if not evento:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
 
-    # Generar código único de entrada
     codigo_generado = f"TK-{uuid.uuid4().hex[:8].upper()}"
     monto_calculado = evento.precio * orden.cantidad
 
@@ -135,7 +140,6 @@ def procesar_compra(
     db.commit()
     db.refresh(nueva_orden)
 
-    # Disparar envío de correo asíncrono
     background_tasks.add_task(
         enviar_correo_confirmacion,
         destino=orden.correo,
